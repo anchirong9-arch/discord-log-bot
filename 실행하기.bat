@@ -99,10 +99,11 @@ if not exist ".env" (
         exit /b 1
     )
     > ".env" echo DISCORD_TOKEN=!TOKEN!
-    >> ".env" echo LOG_CHANNEL_ID=1572390727042727976
+    >> ".env" echo SOURCE_GUILD_ID=386882960403726337
+    >> ".env" echo LOG_CHANNEL_ID=1572394445142360064
     >> ".env" echo LOG_USER_ID=
     echo        .env 파일을 만들었습니다. 이 파일은 절대 남에게 보내지 마세요!
-    echo        로그는 백수톡의 #서버-로그 채널로 갑니다.
+    echo        백수톡의 기록이 개인 서버 paranoia 의 #백수톡-로그 로 갑니다.
 )
 echo        설정 OK
 
@@ -110,7 +111,7 @@ REM ================= 실행 =================
 echo.
 echo  ==================================================
 echo    봇을 켭니다. 이 창을 닫으면 봇이 꺼져요.
-echo    디스코드 백수톡의 #서버-로그 채널을 확인하세요.
+echo    디스코드 개인 서버 paranoia 의 #백수톡-로그 채널을 확인하세요.
 echo  ==================================================
 echo.
 

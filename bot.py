@@ -33,8 +33,10 @@ logging.basicConfig(
 log = logging.getLogger("logbot")
 
 TOKEN = os.getenv("DISCORD_TOKEN", "").strip()
-# 기본값은 백수톡 서버의 #서버-로그 채널 ID
-LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "1572390727042727976").strip() or 0)
+# 감시할 서버: 백수톡. 이 서버에서 일어난 일만 기록한다.
+SOURCE_GUILD_ID = int(os.getenv("SOURCE_GUILD_ID", "386882960403726337").strip() or 0)
+# 로그를 쌓을 채널: 개인 서버(paranoia)의 #백수톡-로그
+LOG_CHANNEL_ID = int(os.getenv("LOG_CHANNEL_ID", "1572394445142360064").strip() or 0)
 # 선택: 로그를 디엠으로도 받을 사용자 ID (0 이면 끔)
 LOG_USER_ID = int(os.getenv("LOG_USER_ID", "0").strip() or 0)
 
@@ -80,6 +82,19 @@ def _channel_text(channel) -> str:
 def _guild_name(message_or_guild) -> str:
     guild = getattr(message_or_guild, "guild", None) or message_or_guild
     return getattr(guild, "name", "백수톡")
+
+
+def from_source_guild(obj, source_id: int = None) -> bool:
+    """이 객체가 감시 대상 서버(기본: 백수톡)의 것인지.
+
+    봇이 여러 서버에 들어가 있으므로, 로그 방이 있는 개인 서버에서 일어난 일은
+    기록하지 않고 백수톡에서 일어난 일만 남긴다.
+    """
+    target = SOURCE_GUILD_ID if source_id is None else source_id
+    if not target:
+        return True
+    guild = getattr(obj, "guild", None)
+    return getattr(guild, "id", None) == target
 
 
 def _now() -> datetime:
@@ -342,7 +357,10 @@ class LogBot(discord.Client):
         channel = self.log_channel
         where = getattr(channel, "name", "?") if channel else "아직 못 찾음"
         log.info("로그인 완료: %s (서버 %d곳)", self.user, len(self.guilds))
+        log.info("감시할 서버: %s", SOURCE_GUILD_ID)
         log.info("로그를 보낼 채널: #%s (%s)", where, LOG_CHANNEL_ID)
+        if SOURCE_GUILD_ID and self.get_guild(SOURCE_GUILD_ID) is None:
+            log.warning("감시 대상 서버(%s)에 봇이 없습니다. 초대 링크로 봇을 초대해 주세요.", SOURCE_GUILD_ID)
         if LOG_USER_ID:
             log.info("디엠 사본: 사용자 ID %s", LOG_USER_ID)
 
@@ -401,6 +419,8 @@ class LogBot(discord.Client):
 
     def _skip(self, message) -> bool:
         if getattr(message, "guild", None) is None:
+            return True
+        if not from_source_guild(message):
             return True
         if getattr(getattr(message, "author", None), "id", None) == getattr(self.user, "id", None):
             return True
@@ -468,15 +488,23 @@ class LogBot(discord.Client):
     # -- 멤버 ---------------------------------------------------------------
 
     async def on_member_join(self, member: discord.Member) -> None:
+        if not from_source_guild(member):
+            return
         self.enqueue(LogItem(build_member_join_embed(member)))
 
     async def on_member_remove(self, member: discord.Member) -> None:
+        if not from_source_guild(member):
+            return
         self.enqueue(LogItem(build_member_leave_embed(member)))
 
     async def on_member_ban(self, guild: discord.Guild, user: discord.User) -> None:
+        if SOURCE_GUILD_ID and getattr(guild, "id", None) != SOURCE_GUILD_ID:
+            return
         self.enqueue(LogItem(build_member_ban_embed(guild, user)))
 
     async def on_member_update(self, before: discord.Member, after: discord.Member) -> None:
+        if not from_source_guild(after):
+            return
         changes = []
         if getattr(before, "nick", None) != getattr(after, "nick", None):
             changes.append(f"닉네임: {before.nick or before.name} → {after.nick or after.name}")
@@ -496,6 +524,8 @@ class LogBot(discord.Client):
     async def on_voice_state_update(self, member: discord.Member, before, after) -> None:
         if getattr(member, "bot", False):
             return
+        if not from_source_guild(member):
+            return
         described = logfmt.describe_voice(before, after)
         if described is None:
             return
@@ -507,15 +537,21 @@ class LogBot(discord.Client):
     async def on_guild_channel_create(self, channel) -> None:
         if getattr(channel, "id", None) == LOG_CHANNEL_ID:
             return
+        if not from_source_guild(channel):
+            return
         self.enqueue(LogItem(build_channel_embed("생성", channel)))
 
     async def on_guild_channel_delete(self, channel) -> None:
         if getattr(channel, "id", None) == LOG_CHANNEL_ID:
             return
+        if not from_source_guild(channel):
+            return
         self.enqueue(LogItem(build_channel_embed("삭제", channel)))
 
     async def on_guild_channel_update(self, before, after) -> None:
         if getattr(after, "id", None) == LOG_CHANNEL_ID:
+            return
+        if not from_source_guild(after):
             return
         changes = logfmt.describe_changes(
             before, after, ("name", "topic", "nsfw", "slowmode_delay", "category_id", "position")
@@ -524,12 +560,18 @@ class LogBot(discord.Client):
             self.enqueue(LogItem(build_channel_embed("변경", after, changes)))
 
     async def on_guild_role_create(self, role) -> None:
+        if not from_source_guild(role):
+            return
         self.enqueue(LogItem(build_role_embed("생성", role)))
 
     async def on_guild_role_delete(self, role) -> None:
+        if not from_source_guild(role):
+            return
         self.enqueue(LogItem(build_role_embed("삭제", role)))
 
     async def on_guild_role_update(self, before, after) -> None:
+        if not from_source_guild(after):
+            return
         changes = logfmt.describe_changes(before, after, ("name", "color", "hoist", "mentionable", "position"))
         changes.extend(permission_diff(before, after))
         if changes:

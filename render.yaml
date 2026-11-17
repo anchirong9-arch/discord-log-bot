@@ -10,8 +10,10 @@ services:
     envVars:
       - key: DISCORD_TOKEN
         sync: false          # 대시보드에서 직접 붙여넣기 (저장소에 올리지 않음)
+      - key: SOURCE_GUILD_ID
+        value: "386882960403726337"   # 백수톡
       - key: LOG_CHANNEL_ID
-        value: "1572390727042727976"
+        value: "1572394445142360064"  # paranoia #백수톡-로그
       - key: LOG_USER_ID
         value: ""            # 비워 두면 디엠 사본 안 보냄
       - key: PYTHON_VERSION

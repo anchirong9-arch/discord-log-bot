@@ -246,6 +246,26 @@ class _Perms:
         return iter(self._items)
 
 
+class TestSourceGuild(unittest.TestCase):
+    def test_from_source(self):
+        msg = fake_message()
+        msg.guild = SimpleNamespace(id=1111, name="백수톡")
+        self.assertTrue(bot.from_source_guild(msg, source_id=1111))
+        self.assertFalse(bot.from_source_guild(msg, source_id=2222))
+
+    def test_other_guild_ignored(self):
+        other = SimpleNamespace(guild=SimpleNamespace(id=2222, name="paranoia"))
+        self.assertFalse(bot.from_source_guild(other, source_id=1111))
+
+    def test_no_guild(self):
+        self.assertFalse(bot.from_source_guild(SimpleNamespace(guild=None), source_id=1111))
+
+    def test_defaults(self):
+        # 기본값: 감시는 백수톡, 저장은 개인 서버 #백수톡-로그
+        self.assertEqual(bot.SOURCE_GUILD_ID, 386882960403726337)
+        self.assertEqual(bot.LOG_CHANNEL_ID, 1572394445142360064)
+
+
 class TestChannelDescribe(unittest.TestCase):
     def test_describe_changes(self):
         before = SimpleNamespace(name="옛이름", topic=None, slowmode_delay=0)
