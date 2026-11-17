@@ -1,0 +1,18 @@
+# Render.com 에서 한 번에 올리는 설정 (무료 Web Service)
+# Render 대시보드 → New → Blueprint → 이 저장소를 고르면 아래 값이 자동으로 들어갑니다.
+services:
+  - type: web
+    name: discord-log-bot
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false          # 대시보드에서 직접 붙여넣기 (저장소에 올리지 않음)
+      - key: LOG_CHANNEL_ID
+        value: "1572390727042727976"
+      - key: LOG_USER_ID
+        value: ""            # 비워 두면 디엠 사본 안 보냄
+      - key: PYTHON_VERSION
+        value: "3.12.6"
